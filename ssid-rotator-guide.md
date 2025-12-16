@@ -85,33 +85,116 @@ The code in this guide has been updated to use the correct `/proxy/network` pref
 
 ---
 
+## Deployment Strategy
+
+This project follows a **Git-based deployment workflow** to maintain a read-only production environment:
+
+### Development vs Production
+
+| Environment | Purpose | Editing | Updates |
+|------------|---------|---------|---------|
+| **PC/Laptop** | Development | ✅ Edit all scripts locally | `git push` to GitHub |
+| **Raspberry Pi** | Production | ❌ Never edit files on Pi | `bash ~/ssid_rotator/update_app.sh` |
+
+### Key Principles
+
+1. **All code editing happens on PC** - Push changes to GitHub
+2. **Pi is read-only (code)** - Only pulls updates via git
+3. **Configuration via Web UI** - Manage SSID lists through browser
+4. **State files are writable** - `/var/lib/ssid_rotator/` for runtime data
+5. **One-command updates** - `update_app.sh` pulls code and restarts services
+
+### File Locations
+
+```
+~/ssid_rotator/              # Code repository (read-only in production)
+├── src/                     # Python scripts
+├── deployment/              # Systemd service files
+└── update_app.sh           # Update script
+
+/var/lib/ssid_rotator/      # Runtime state (writable)
+├── ssid_list.json          # SSID configuration (editable via web UI)
+├── state.json              # Rotation state
+└── *.backup                # Auto-generated backups
+
+/var/log/                   # Logs (writable)
+└── ssid-rotator.log        # Rotation activity log
+```
+
+### Update Workflow
+
+**On PC (after making code changes):**
+```bash
+git add .
+git commit -m "Description of changes"
+git push origin main
+```
+
+**On Pi (to receive updates):**
+```bash
+ssh pi@rotator.local
+bash ~/ssid_rotator/update_app.sh
+```
+
+The update script automatically:
+- Pulls latest code from GitHub
+- Cleans Python cache
+- Restarts web interface service
+- Logs all actions
+
+---
+
 ## Installation Steps
 
-### Step 1: Create Directory Structure
+### Initial Deployment (One-Time Setup)
+
+This section covers first-time installation on your Raspberry Pi. After initial setup, all updates happen via `update_app.sh`.
+
+### Step 1: Clone Repository
 
 ```bash
-# Create main directory
-sudo mkdir -p /opt/ssid-rotator
-sudo chown $USER:$USER /opt/ssid-rotator
+# SSH into your Pi
+ssh pi@rotator.local
 
-# Create state/config directory
-sudo mkdir -p /var/lib/ssid_rotator
-sudo chown $USER:$USER /var/lib/ssid_rotator
-
-# Create log directory
-sudo touch /var/log/ssid-rotator.log
-sudo chown $USER:$USER /var/log/ssid-rotator.log
+# Clone the repository to home directory
+cd ~
+git clone https://github.com/watmatt00/ssid_rotator.git
+cd ssid_rotator
 ```
 
 ### Step 2: Install Dependencies
 
 ```bash
+# Install required Python packages
 pip3 install flask requests --break-system-packages
+
+# Alternatively, if requirements.txt exists:
+# pip3 install -r requirements.txt --break-system-packages
 ```
 
-### Step 3: Create Initial Configuration File
+### Step 3: Create Runtime Directories
+
+```bash
+# Create state/config directory
+sudo mkdir -p /var/lib/ssid_rotator
+sudo chown pi:pi /var/lib/ssid_rotator
+
+# Create log file
+sudo touch /var/log/ssid-rotator.log
+sudo chown pi:pi /var/log/ssid-rotator.log
+```
+
+### Step 4: Create Initial Configuration File
 
 Create `/var/lib/ssid_rotator/ssid_list.json`:
+
+```bash
+# Copy example configuration (once files are in repo)
+# For now, create manually:
+nano /var/lib/ssid_rotator/ssid_list.json
+```
+
+Paste this content:
 
 ```json
 {
@@ -135,26 +218,29 @@ Create `/var/lib/ssid_rotator/ssid_list.json`:
     "newnative",
     "7Oaks-Work"
   ],
-  "last_updated": "2024-12-11T10:00:00",
+  "last_updated": "2024-12-16T00:00:00",
   "updated_by": "initial_setup"
 }
 ```
 
-**Note:** The system uses a two-stage list approach:
-- **Active Rotation**: 5-7 SSIDs that are currently rotating (faster cycles)
-- **Reserve Pool**: Your collection of SSIDs waiting to be promoted to active rotation
-- **Protected SSIDs**: Your production networks that will NEVER be modified
-  - `7Oaks` - Your main 5GHz network
-  - `7Oaks-IOT` - Your IoT 2.4GHz network
-  - `newnative` - Your secondary 5GHz network
-  - `7Oaks-Work` - Your work network (both bands)
-- The SSID **"Fuck the orange turd"** (ID: `69363fd4005cd02fa28ab902`) will be rotated
-- With 5 SSIDs active at 18-hour intervals = **3.75 days per full cycle**
-- With 7 SSIDs active at 18-hour intervals = **5.25 days per full cycle**
+**Configuration Notes:**
+- **Active Rotation**: 5-7 SSIDs currently rotating (faster cycles)
+- **Reserve Pool**: SSIDs waiting to be promoted to active rotation
+- **Protected SSIDs**: Production networks that will NEVER be modified
+  - `7Oaks` - Main 5GHz network
+  - `7Oaks-IOT` - IoT 2.4GHz network  
+  - `newnative` - Secondary 5GHz network
+  - `7Oaks-Work` - Work network (both bands)
+- Target SSID: **"Fuck the orange turd"** (ID: `69363fd4005cd02fa28ab902`)
+- Cycle time: 5 SSIDs × 18 hours = **3.75 days per full cycle**
 
-### Step 4: Create the Rotation Script
+**⚠️ Important:** After initial setup, manage SSID lists via the web interface at `http://rotator.local:5000`. Never edit `ssid_list.json` directly after deployment.
 
-Create `/opt/ssid-rotator/rotate_ssid.py`:
+### Step 5: Deploy Scripts from Repository
+
+**Note:** In the current phase, scripts need to be created manually. Once the repository structure is complete, this step will simply reference existing files.
+
+For now, create the rotation script at `~/ssid_rotator/rotate_ssid.py`:
 
 ```python
 #!/usr/bin/env python3
@@ -414,14 +500,24 @@ if __name__ == "__main__":
     main()
 ```
 
-Make it executable:
-```bash
-chmod +x /opt/ssid-rotator/rotate_ssid.py
+**Update the password** in the CONFIG section before saving:
+```python
+CONFIG = {
+    "unifi_host": "192.168.102.1",
+    "username": "admin",
+    "password": "C0,5prings@@@",  # ← Update this with your actual password
+    ...
+}
 ```
 
-### Step 5: Create the Web Management Interface
+Make it executable:
+```bash
+chmod +x ~/ssid_rotator/rotate_ssid.py
+```
 
-Create `/opt/ssid-rotator/web_manager.py`:
+### Step 6: Create the Web Management Interface
+
+Create `~/ssid_rotator/web_manager.py`:
 
 ```python
 #!/usr/bin/env python3
@@ -1042,7 +1138,7 @@ if __name__ == '__main__':
 
 Make it executable:
 ```bash
-chmod +x /opt/ssid-rotator/web_manager.py
+chmod +x ~/ssid_rotator/web_manager.py
 ```
 
 ---
@@ -1116,7 +1212,7 @@ With a firm 18-hour rotation period and a collection of 10-20 SSIDs, a single ro
 
 ### Update Rotation Script Configuration
 
-Edit `/opt/ssid-rotator/rotate_ssid.py` and update the CONFIG section:
+Edit `~/ssid_rotator/rotate_ssid.py` and update the CONFIG section:
 
 ```python
 CONFIG = {
@@ -1171,7 +1267,7 @@ Edit `/var/lib/ssid_rotator/ssid_list.json` and configure your lists:
 
 ```bash
 # Test a manual rotation
-python3 /opt/ssid-rotator/rotate_ssid.py
+python3 ~/ssid_rotator/rotate_ssid.py
 
 # Check the output for any errors
 # Verify the SSID changed in your UniFi interface at https://192.168.102.1
@@ -1181,10 +1277,81 @@ python3 /opt/ssid-rotator/rotate_ssid.py
 
 ```bash
 # Start the web manager
-python3 /opt/ssid-rotator/web_manager.py
+python3 ~/ssid_rotator/web_manager.py
 
 # Open browser to http://rotator.local:5000 or http://192.168.102.205:5000
 # Try adding/removing SSIDs
+```
+
+---
+
+## Updating the Application
+
+### Production Update Workflow
+
+After initial deployment, **all code changes should be made on your PC and pushed to GitHub**. The Pi pulls updates using a single command.
+
+### On Your PC (Development)
+
+```bash
+# 1. Make changes to Python scripts locally
+cd ~/path/to/ssid_rotator
+
+# 2. Test changes if possible (API connectivity, syntax, etc.)
+python3 -m py_compile src/rotate_ssid.py
+python3 -m py_compile src/web_manager.py
+
+# 3. Commit and push to GitHub
+git add .
+git commit -m "Description of your changes"
+git push origin main
+```
+
+### On the Raspberry Pi (Production)
+
+```bash
+# SSH into Pi
+ssh pi@rotator.local
+
+# Run the update script
+bash ~/ssid_rotator/update_app.sh
+```
+
+**What `update_app.sh` does:**
+1. Fetches latest code from GitHub
+2. Resets local repository to `origin/main` (discards any local changes)
+3. Cleans Python cache (`__pycache__`, `.pyc` files)
+4. Sets execute permissions on scripts
+5. Restarts web interface service
+6. Logs all actions to `/var/log/ssid-rotator.log`
+
+### Important Rules
+
+✅ **DO:**
+- Edit code on PC/laptop
+- Test changes before pushing
+- Use `update_app.sh` to deploy to Pi
+- Edit SSID lists via web interface
+
+❌ **DON'T:**
+- Edit Python files directly on Pi
+- Make git commits from Pi
+- Manually restart services (let update script handle it)
+- Edit `ssid_list.json` directly (use web UI)
+
+### Manual Service Restart (If Needed)
+
+If you need to restart services without updating code:
+
+```bash
+# Restart web interface only
+sudo systemctl restart ssid-web-manager
+
+# Check web interface status
+sudo systemctl status ssid-web-manager
+
+# View recent logs
+tail -50 /var/log/ssid-rotator.log
 ```
 
 ---
@@ -1198,10 +1365,18 @@ python3 /opt/ssid-rotator/web_manager.py
 crontab -e
 
 # Add this line for rotation every 18 hours
-0 */18 * * * /usr/bin/python3 /opt/ssid-rotator/rotate_ssid.py >> /var/log/ssid-rotator.log 2>&1
+0 */18 * * * /usr/bin/python3 ~/ssid_rotator/rotate_ssid.py >> /var/log/ssid-rotator.log 2>&1
 ```
 
 ### Option 2: Systemd Timer (More Precise)
+
+**Note:** Once repository structure is complete, service files will be in `~/ssid_rotator/deployment/systemd/` and can be copied with:
+```bash
+sudo cp ~/ssid_rotator/deployment/systemd/*.service /etc/systemd/system/
+sudo cp ~/ssid_rotator/deployment/systemd/*.timer /etc/systemd/system/
+```
+
+For now, create manually:
 
 Create `/etc/systemd/system/ssid-rotator.service`:
 
@@ -1211,8 +1386,8 @@ Description=SSID Rotator Service
 
 [Service]
 Type=oneshot
-User=your-username
-ExecStart=/usr/bin/python3 /opt/ssid-rotator/rotate_ssid.py
+User=pi
+ExecStart=/usr/bin/python3 /home/pi/ssid_rotator/rotate_ssid.py
 StandardOutput=append:/var/log/ssid-rotator.log
 StandardError=append:/var/log/ssid-rotator.log
 ```
@@ -1303,7 +1478,9 @@ The **Reserve Pool** section stores SSIDs not currently rotating:
 
 ## Running Web Interface as a Service
 
-Create `/etc/systemd/system/ssid-web-manager.service`:
+**Note:** Once repository structure is complete, this file will be at `~/ssid_rotator/deployment/systemd/ssid-web-manager.service`.
+
+For now, create `/etc/systemd/system/ssid-web-manager.service`:
 
 ```ini
 [Unit]
@@ -1313,8 +1490,8 @@ After=network.target
 [Service]
 Type=simple
 User=pi
-WorkingDirectory=/opt/ssid-rotator
-ExecStart=/usr/bin/python3 /opt/ssid-rotator/web_manager.py
+WorkingDirectory=/home/pi/ssid_rotator
+ExecStart=/usr/bin/python3 /home/pi/ssid_rotator/web_manager.py
 Restart=always
 RestartSec=10
 
@@ -1332,6 +1509,8 @@ sudo systemctl status ssid-web-manager
 ```
 
 Access the web interface at: `http://rotator.local:5000` or `http://192.168.102.205:5000`
+
+**After Initial Setup:** The `update_app.sh` script automatically restarts this service when pulling code updates.
 
 ---
 
@@ -1436,7 +1615,7 @@ print(r.status_code, r.json())
 "
 
 # Check for Python errors
-python3 /opt/ssid-rotator/rotate_ssid.py
+python3 ~/ssid_rotator/rotate_ssid.py
 ```
 
 ### Web Interface Not Accessible
@@ -1477,7 +1656,7 @@ The script has multiple safety checks. If this happens:
 # Backup all configuration
 tar -czf ssid-rotator-backup-$(date +%Y%m%d).tar.gz \
     /var/lib/ssid_rotator/ \
-    /opt/ssid-rotator/ \
+    ~/ssid_rotator/ \
     /etc/systemd/system/ssid-*.service \
     /etc/systemd/system/ssid-*.timer
 
@@ -1526,17 +1705,38 @@ sudo systemctl daemon-reload
 
 ## Maintenance
 
-### Update SSID List
+### Update Code (Python Scripts)
 
-Via web interface (easiest):
+**All code changes must be made on your PC and deployed via Git:**
+
+```bash
+# On PC: Make changes, commit, push
+git add .
+git commit -m "Your changes"
+git push origin main
+
+# On Pi: Pull updates
+ssh pi@rotator.local
+bash ~/ssid_rotator/update_app.sh
+```
+
+**Never edit Python files directly on the Pi.** The git workflow ensures clean deployments and easy rollbacks.
+
+### Update SSID Lists
+
+**Recommended: Via Web Interface**
 1. Open `http://rotator.local:5000` or `http://192.168.102.205:5000`
 2. Add/remove SSIDs through the UI
+3. Move SSIDs between active rotation and reserve pool
 
-Via command line:
+**Alternative: Direct File Edit (Not Recommended)**
 ```bash
+# Only if web interface is unavailable
 nano /var/lib/ssid_rotator/ssid_list.json
-# Edit and save
+# Edit and save - be careful with JSON syntax
 ```
+
+⚠️ **Warning:** Direct file editing bypasses validation and can cause JSON syntax errors. Always use the web interface when possible.
 
 ### Check Rotation Schedule
 
@@ -1551,8 +1751,24 @@ sudo systemctl list-timers | grep ssid
 ### Manual Rotation
 
 ```bash
-# Force a rotation now
-python3 /opt/ssid-rotator/rotate_ssid.py
+# Force a rotation now (useful for testing)
+python3 ~/ssid_rotator/rotate_ssid.py
+
+# View results
+tail -20 /var/log/ssid-rotator.log
+```
+
+### Backup Configuration
+
+```bash
+# Backup SSID list
+cp /var/lib/ssid_rotator/ssid_list.json ~/ssid_list_backup_$(date +%Y%m%d).json
+
+# Backup state
+cp /var/lib/ssid_rotator/state.json ~/state_backup_$(date +%Y%m%d).json
+
+# Copy to PC for safekeeping
+scp pi@rotator.local:~/ssid_list_backup_*.json ~/backups/
 ```
 
 ---
@@ -1567,7 +1783,7 @@ sudo systemctl stop ssid-rotator.timer
 sudo systemctl disable ssid-rotator.timer
 
 # Remove files
-sudo rm -rf /opt/ssid-rotator
+sudo rm -rf ~/ssid_rotator
 sudo rm -rf /var/lib/ssid_rotator
 sudo rm /var/log/ssid-rotator.log
 sudo rm /etc/systemd/system/ssid-*.service
@@ -1590,13 +1806,13 @@ Edit cron job to change from 18 hours to something else:
 
 ```cron
 # Every 12 hours
-0 */12 * * * /usr/bin/python3 /opt/ssid-rotator/rotate_ssid.py >> /var/log/ssid-rotator.log 2>&1
+0 */12 * * * /usr/bin/python3 ~/ssid_rotator/rotate_ssid.py >> /var/log/ssid-rotator.log 2>&1
 
 # Every 6 hours
-0 */6 * * * /usr/bin/python3 /opt/ssid-rotator/rotate_ssid.py >> /var/log/ssid-rotator.log 2>&1
+0 */6 * * * /usr/bin/python3 ~/ssid_rotator/rotate_ssid.py >> /var/log/ssid-rotator.log 2>&1
 
 # Once per day at 3am
-0 3 * * * /usr/bin/python3 /opt/ssid-rotator/rotate_ssid.py >> /var/log/ssid-rotator.log 2>&1
+0 3 * * * /usr/bin/python3 ~/ssid_rotator/rotate_ssid.py >> /var/log/ssid-rotator.log 2>&1
 ```
 
 ### Add Notifications
@@ -2291,10 +2507,10 @@ SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
 MAILTO=admin@example.com
 
-0 */18 * * * /usr/bin/python3 /opt/ssid-rotator/rotate_ssid.py >> /var/log/ssid-rotator.log 2>&1 || echo "SSID rotation failed at $(date)" >> /var/log/ssid-rotator-errors.log
+0 */18 * * * /usr/bin/python3 ~/ssid_rotator/rotate_ssid.py >> /var/log/ssid-rotator.log 2>&1 || echo "SSID rotation failed at $(date)" >> /var/log/ssid-rotator-errors.log
 
 # Create health check script
-# /opt/ssid-rotator/health_check.sh
+# ~/ssid_rotator/health_check.sh
 #!/bin/bash
 STATE_FILE="/var/lib/ssid_rotator/state.json"
 
@@ -2314,7 +2530,7 @@ if [ $DIFF -gt 72000 ]; then
 fi
 
 # Add to crontab for daily health check
-# 0 10 * * * /opt/ssid-rotator/health_check.sh
+# 0 10 * * * ~/ssid_rotator/health_check.sh
 ```
 
 ### 8. Web Interface Issues
@@ -2625,7 +2841,7 @@ Create a comprehensive monitoring script to detect issues:
 
 ```python
 #!/usr/bin/env python3
-# /opt/ssid-rotator/monitor.py
+# ~/ssid_rotator/monitor.py
 
 import json
 import os
@@ -2772,13 +2988,13 @@ if __name__ == "__main__":
 Make it executable and add to crontab:
 
 ```bash
-chmod +x /opt/ssid-rotator/monitor.py
+chmod +x ~/ssid_rotator/monitor.py
 
 # Add to crontab for daily health checks
 crontab -e
 
 # Add:
-0 9 * * * /usr/bin/python3 /opt/ssid-rotator/monitor.py >> /var/log/ssid-rotator-health.log 2>&1
+0 9 * * * /usr/bin/python3 ~/ssid_rotator/monitor.py >> /var/log/ssid-rotator-health.log 2>&1
 ```
 
 ### Best Practices for Reliability
@@ -2812,7 +3028,7 @@ crontab -e
 
 ```bash
 # Force rotation immediately
-python3 /opt/ssid-rotator/rotate_ssid.py
+python3 ~/ssid_rotator/rotate_ssid.py
 
 # Reset state to start from beginning
 echo '{"current_index": 0, "wlan_id": null}' > /var/lib/ssid_rotator/state.json
