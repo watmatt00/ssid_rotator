@@ -94,7 +94,7 @@ This project follows a **Git-based deployment workflow** to maintain a read-only
 | Environment | Purpose | Editing | Updates |
 |------------|---------|---------|---------|
 | **PC/Laptop** | Development | ✅ Edit all scripts locally | `git push` to GitHub |
-| **Raspberry Pi** | Production | ❌ Never edit files on Pi | `bash ~/ssid_rotator/update_app.sh` |
+| **Raspberry Pi** | Production | ❌ Never edit files on Pi | `bash ~/ssid_rotator/ops_tools/update_app.sh` |
 
 ### Key Principles
 
@@ -109,8 +109,9 @@ This project follows a **Git-based deployment workflow** to maintain a read-only
 ```
 ~/ssid_rotator/              # Code repository (read-only in production)
 ├── src/                     # Python scripts
-├── deployment/              # Systemd service files
-└── update_app.sh           # Update script
+├── ops_tools/               # Operational scripts
+│   └── update_app.sh       # Update script
+└── deployment/              # Systemd service files
 
 /var/lib/ssid_rotator/      # Runtime state (writable)
 ├── ssid_list.json          # SSID configuration (editable via web UI)
@@ -133,7 +134,7 @@ git push origin main
 **On Pi (to receive updates):**
 ```bash
 ssh pi@rotator.local
-bash ~/ssid_rotator/update_app.sh
+bash ~/ssid_rotator/ops_tools/update_app.sh
 ```
 
 The update script automatically:
@@ -148,7 +149,7 @@ The update script automatically:
 
 ### Initial Deployment (One-Time Setup)
 
-This section covers first-time installation on your Raspberry Pi. After initial setup, all updates happen via `update_app.sh`.
+This section covers first-time installation on your Raspberry Pi. After initial setup, all updates happen via `ops_tools/update_app.sh`.
 
 ### Step 1: Clone Repository
 
@@ -1314,10 +1315,10 @@ git push origin main
 ssh pi@rotator.local
 
 # Run the update script
-bash ~/ssid_rotator/update_app.sh
+bash ~/ssid_rotator/ops_tools/update_app.sh
 ```
 
-**What `update_app.sh` does:**
+**What `ops_tools/update_app.sh` does:**
 1. Fetches latest code from GitHub
 2. Resets local repository to `origin/main` (discards any local changes)
 3. Cleans Python cache (`__pycache__`, `.pyc` files)
@@ -1510,7 +1511,7 @@ sudo systemctl status ssid-web-manager
 
 Access the web interface at: `http://rotator.local:5000` or `http://192.168.102.205:5000`
 
-**After Initial Setup:** The `update_app.sh` script automatically restarts this service when pulling code updates.
+**After Initial Setup:** The `ops_tools/update_app.sh` script automatically restarts this service when pulling code updates.
 
 ---
 
@@ -1717,7 +1718,7 @@ git push origin main
 
 # On Pi: Pull updates
 ssh pi@rotator.local
-bash ~/ssid_rotator/update_app.sh
+bash ~/ssid_rotator/ops_tools/update_app.sh
 ```
 
 **Never edit Python files directly on the Pi.** The git workflow ensures clean deployments and easy rollbacks.

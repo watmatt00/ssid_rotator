@@ -260,7 +260,7 @@ The project follows a strict development/production separation pattern inspired 
 
 #### Raspberry Pi (Production Environment)
 **Allowed:**
-- ✅ Pull updates using: `bash ~/ssid_rotator/update_app.sh`
+- ✅ Pull updates using: `bash ~/ssid_rotator/ops_tools/update_app.sh`
 - ✅ Edit SSID lists via web UI (http://rotator.local:5000)
 - ✅ View logs and monitor system status
 - ✅ Manual rotation for testing: `python3 ~/ssid_rotator/rotate_ssid.py`
@@ -274,9 +274,11 @@ The project follows a strict development/production separation pattern inspired 
 
 ```
 ~/ssid_rotator/                    # Code repository (managed by git)
-├── src/                           # Python scripts (to be created)
+├── src/                           # Python scripts
 │   ├── rotate_ssid.py            # Main rotation logic
 │   └── web_manager.py            # Flask web interface
+├── ops_tools/                     # Operational scripts
+│   └── update_app.sh             # Update script
 ├── deployment/                    # Deployment files (to be created)
 │   └── systemd/                  # Service files
 │       ├── ssid-rotator.service
@@ -284,7 +286,6 @@ The project follows a strict development/production separation pattern inspired 
 │       └── ssid-web-manager.service
 ├── config/                        # Configuration templates
 │   └── ssid_list.example.json
-├── update_app.sh                  # Update script (to be created)
 ├── requirements.txt               # Python dependencies
 ├── .gitignore                     # Git ignore rules
 └── README.md                      # Project overview
@@ -359,9 +360,9 @@ The Pi filesystem is read-only for code, writable only for runtime data:
 - User-managed via web interface, never committed to git
 
 **Code Files (Edit on PC Only):**
-- `~/ssid_rotator/*.py` - All Python scripts
+- `~/ssid_rotator/src/*.py` - All Python scripts
 - `~/ssid_rotator/deployment/*` - Service files
-- Managed in git repository, deployed via update_app.sh
+- Managed in git repository, deployed via ops_tools/update_app.sh
 
 ### Emergency Procedures
 
@@ -479,7 +480,7 @@ UniFi Dream Router Pro 7 (192.168.102.1)
 ### v1.2 - December 16, 2024
 - Added comprehensive Development Workflow section
   - Environment separation (PC dev, Pi production)
-  - Git-based update workflow with update_app.sh
+  - Git-based update workflow with ops_tools/update_app.sh
   - Repository structure documentation
   - Read-only Pi approach with writable state directories
   - File ownership and permissions
