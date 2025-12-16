@@ -858,4 +858,20 @@ def rotate_now():
         }), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    import ssl
+    import os
+    
+    # SSL certificate paths
+    cert_dir = os.path.expanduser('~/certs')
+    cert_path = os.path.join(cert_dir, 'fullchain.pem')
+    key_path = os.path.join(cert_dir, 'privkey.pem')
+    
+    # Check if certificates exist
+    if os.path.exists(cert_path) and os.path.exists(key_path):
+        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ssl_context.load_cert_chain(cert_path, key_path)
+        print(f"Starting HTTPS server on port 5000 with SSL certificates from {cert_dir}")
+        app.run(host='0.0.0.0', port=5000, ssl_context=ssl_context, debug=False)
+    else:
+        print(f"SSL certificates not found in {cert_dir}, starting HTTP server on port 5000")
+        app.run(host='0.0.0.0', port=5000, debug=False)

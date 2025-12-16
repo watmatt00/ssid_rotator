@@ -81,7 +81,7 @@ The code in this guide has been updated to use the correct `/proxy/network` pref
 - **Password:** `rotator`
 - **OS:** Raspberry Pi OS Lite
 - **SSH Access:** `ssh pi@rotator.local` or `ssh pi@192.168.102.205`
-- **Web Interface:** `http://rotator.local:5000` or `http://192.168.102.205:5000`
+- **Web Interface:** `https://rotator.local:5000` or `https://192.168.102.205:5000` (HTTP fallback if SSL certs not present)
 
 ---
 

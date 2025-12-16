@@ -43,7 +43,8 @@ sudo systemctl start ssid-web-manager
 - **Type**: Simple (long-running daemon)
 - **Function**: Runs Flask web interface on port 5000
 - **Auto-restart**: Yes (10 second delay after failure)
-- **Access**: http://rotator.local:5000 or http://192.168.102.205:5000
+- **Access**: https://rotator.local:5000 or https://192.168.102.205:5000
+- **SSL/TLS**: Automatically uses certificates from `~/certs/` if present
 
 ## Verification
 
