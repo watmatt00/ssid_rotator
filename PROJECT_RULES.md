@@ -20,7 +20,11 @@
 - **Access:** Headless via SSH
 - **Power:** 5V 2A+ USB power supply
 - **Network:** WiFi (2.4GHz only) or USB Ethernet adapter
-- **Hostname:** `raspberrypi.local` (or assign static IP)
+- **Hostname:** `rotator`
+- **Username:** `pi`
+- **Password:** `rotator`
+- **IP Address:** `192.168.102.205` (static)
+- **DNS Name:** `rotator.local`
 
 ---
 
@@ -267,8 +271,9 @@ UniFi Dream Router Pro 7 (192.168.102.1)
              ↑
              Managed by
              ↓
-    Raspberry Pi Zero W (WiFi client)
-         ├── Hostname: raspberrypi.local
+    Raspberry Pi Zero W (192.168.102.205)
+         ├── Hostname: rotator / rotator.local
+         ├── Username: pi
          ├── Running: rotate_ssid.py (cron)
          └── Running: web_manager.py (systemd)
 ```
@@ -309,6 +314,12 @@ UniFi Dream Router Pro 7 (192.168.102.1)
 
 ## Change Log
 
+### v1.1 - December 16, 2024
+- Raspberry Pi host configuration documented
+  - Hostname: rotator (rotator.local)
+  - IP: 192.168.102.205
+  - Credentials: pi / rotator
+
 ### v1.0 - December 16, 2024
 - Initial project rules document created
 - API endpoints verified and documented
@@ -329,5 +340,5 @@ UniFi Dream Router Pro 7 (192.168.102.1)
 ---
 
 **Last Updated:** December 16, 2024  
-**Document Version:** 1.0  
+**Document Version:** 1.1  
 **Status:** Canonical - All information in this document is authoritative for the project

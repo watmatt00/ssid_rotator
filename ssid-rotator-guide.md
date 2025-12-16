@@ -71,6 +71,20 @@ The code in this guide has been updated to use the correct `/proxy/network` pref
 
 ---
 
+## Host Configuration
+
+**Raspberry Pi Zero W Details:**
+- **Hostname:** `rotator`
+- **DNS Name:** `rotator.local`
+- **IP Address:** `192.168.102.205` (static)
+- **Username:** `pi`
+- **Password:** `rotator`
+- **OS:** Raspberry Pi OS Lite
+- **SSH Access:** `ssh pi@rotator.local` or `ssh pi@192.168.102.205`
+- **Web Interface:** `http://rotator.local:5000` or `http://192.168.102.205:5000`
+
+---
+
 ## Installation Steps
 
 ### Step 1: Create Directory Structure
@@ -1169,7 +1183,7 @@ python3 /opt/ssid-rotator/rotate_ssid.py
 # Start the web manager
 python3 /opt/ssid-rotator/web_manager.py
 
-# Open browser to http://your-server-ip:5000
+# Open browser to http://rotator.local:5000 or http://192.168.102.205:5000
 # Try adding/removing SSIDs
 ```
 
@@ -1236,7 +1250,7 @@ sudo systemctl list-timers
 
 ### Overview
 
-The web interface provides easy management of your two-stage SSID rotation system. Access it at `http://your-server-ip:5000`
+The web interface provides easy management of your two-stage SSID rotation system. Access it at `http://rotator.local:5000` or `http://192.168.102.205:5000`
 
 ### Managing Active Rotation
 
@@ -1298,7 +1312,7 @@ After=network.target
 
 [Service]
 Type=simple
-User=your-username
+User=pi
 WorkingDirectory=/opt/ssid-rotator
 ExecStart=/usr/bin/python3 /opt/ssid-rotator/web_manager.py
 Restart=always
@@ -1317,7 +1331,7 @@ sudo systemctl start ssid-web-manager
 sudo systemctl status ssid-web-manager
 ```
 
-Access the web interface at: `http://your-server-ip:5000`
+Access the web interface at: `http://rotator.local:5000` or `http://192.168.102.205:5000`
 
 ---
 
@@ -1408,15 +1422,15 @@ Create `/etc/logrotate.d/ssid-rotator`:
 
 ```bash
 # Check if script can reach UDR
-curl -k https://192.168.1.1
+curl -k https://192.168.102.1
 
 # Test login manually
 python3 -c "
 import requests
 import urllib3
 urllib3.disable_warnings()
-r = requests.post('https://192.168.1.1/api/auth/login',
-                  json={'username': 'admin', 'password': 'yourpass'},
+r = requests.post('https://192.168.102.1/proxy/network/api/auth/login',
+                  json={'username': 'admin', 'password': 'C0,5prings@@@'},
                   verify=False)
 print(r.status_code, r.json())
 "
@@ -1515,7 +1529,7 @@ sudo systemctl daemon-reload
 ### Update SSID List
 
 Via web interface (easiest):
-1. Open `http://your-server-ip:5000`
+1. Open `http://rotator.local:5000` or `http://192.168.102.205:5000`
 2. Add/remove SSIDs through the UI
 
 Via command line:
@@ -2678,7 +2692,7 @@ def check_rotation_health():
     
     # Check web service health
     try:
-        r = requests.get("http://localhost:5000/health", timeout=5)
+        r = requests.get("http://192.168.102.205:5000/health", timeout=5)
         if r.status_code != 200:
             issues.append("Web interface health check failed")
         else:
