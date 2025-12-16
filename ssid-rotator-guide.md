@@ -240,7 +240,7 @@ Paste this content:
 
 **Note:** In the current phase, scripts need to be created manually. Once the repository structure is complete, this step will simply reference existing files.
 
-For now, create the rotation script at `~/ssid_rotator/rotate_ssid.py`:
+For now, create the rotation script at `~/ssid_rotator/src/rotate_ssid.py`:
 
 ```python
 #!/usr/bin/env python3
@@ -512,12 +512,12 @@ CONFIG = {
 
 Make it executable:
 ```bash
-chmod +x ~/ssid_rotator/rotate_ssid.py
+chmod +x ~/ssid_rotator/src/rotate_ssid.py
 ```
 
 ### Step 6: Create the Web Management Interface
 
-Create `~/ssid_rotator/web_manager.py`:
+Create `~/ssid_rotator/src/web_manager.py`:
 
 ```python
 #!/usr/bin/env python3
@@ -1138,7 +1138,7 @@ if __name__ == '__main__':
 
 Make it executable:
 ```bash
-chmod +x ~/ssid_rotator/web_manager.py
+chmod +x ~/ssid_rotator/src/web_manager.py
 ```
 
 ---
@@ -1212,7 +1212,7 @@ With a firm 18-hour rotation period and a collection of 10-20 SSIDs, a single ro
 
 ### Update Rotation Script Configuration
 
-Edit `~/ssid_rotator/rotate_ssid.py` and update the CONFIG section:
+Edit `~/ssid_rotator/src/rotate_ssid.py` and update the CONFIG section:
 
 ```python
 CONFIG = {
@@ -1267,7 +1267,7 @@ Edit `/var/lib/ssid_rotator/ssid_list.json` and configure your lists:
 
 ```bash
 # Test a manual rotation
-python3 ~/ssid_rotator/rotate_ssid.py
+python3 ~/ssid_rotator/src/rotate_ssid.py
 
 # Check the output for any errors
 # Verify the SSID changed in your UniFi interface at https://192.168.102.1
@@ -1277,7 +1277,7 @@ python3 ~/ssid_rotator/rotate_ssid.py
 
 ```bash
 # Start the web manager
-python3 ~/ssid_rotator/web_manager.py
+python3 ~/ssid_rotator/src/web_manager.py
 
 # Open browser to http://rotator.local:5000 or http://192.168.102.205:5000
 # Try adding/removing SSIDs
@@ -1365,7 +1365,7 @@ tail -50 /var/log/ssid-rotator.log
 crontab -e
 
 # Add this line for rotation every 18 hours
-0 */18 * * * /usr/bin/python3 ~/ssid_rotator/rotate_ssid.py >> /var/log/ssid-rotator.log 2>&1
+0 */18 * * * /usr/bin/python3 ~/ssid_rotator/src/rotate_ssid.py >> /var/log/ssid-rotator.log 2>&1
 ```
 
 ### Option 2: Systemd Timer (More Precise)
@@ -1491,7 +1491,7 @@ After=network.target
 Type=simple
 User=pi
 WorkingDirectory=/home/pi/ssid_rotator
-ExecStart=/usr/bin/python3 /home/pi/ssid_rotator/web_manager.py
+ExecStart=/usr/bin/python3 /home/pi/ssid_rotator/src/web_manager.py
 Restart=always
 RestartSec=10
 
@@ -1615,7 +1615,7 @@ print(r.status_code, r.json())
 "
 
 # Check for Python errors
-python3 ~/ssid_rotator/rotate_ssid.py
+python3 ~/ssid_rotator/src/rotate_ssid.py
 ```
 
 ### Web Interface Not Accessible
@@ -1752,7 +1752,7 @@ sudo systemctl list-timers | grep ssid
 
 ```bash
 # Force a rotation now (useful for testing)
-python3 ~/ssid_rotator/rotate_ssid.py
+python3 ~/ssid_rotator/src/rotate_ssid.py
 
 # View results
 tail -20 /var/log/ssid-rotator.log
@@ -1806,13 +1806,13 @@ Edit cron job to change from 18 hours to something else:
 
 ```cron
 # Every 12 hours
-0 */12 * * * /usr/bin/python3 ~/ssid_rotator/rotate_ssid.py >> /var/log/ssid-rotator.log 2>&1
+0 */12 * * * /usr/bin/python3 ~/ssid_rotator/src/rotate_ssid.py >> /var/log/ssid-rotator.log 2>&1
 
 # Every 6 hours
-0 */6 * * * /usr/bin/python3 ~/ssid_rotator/rotate_ssid.py >> /var/log/ssid-rotator.log 2>&1
+0 */6 * * * /usr/bin/python3 ~/ssid_rotator/src/rotate_ssid.py >> /var/log/ssid-rotator.log 2>&1
 
 # Once per day at 3am
-0 3 * * * /usr/bin/python3 ~/ssid_rotator/rotate_ssid.py >> /var/log/ssid-rotator.log 2>&1
+0 3 * * * /usr/bin/python3 ~/ssid_rotator/src/rotate_ssid.py >> /var/log/ssid-rotator.log 2>&1
 ```
 
 ### Add Notifications
@@ -2507,7 +2507,7 @@ SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
 MAILTO=admin@example.com
 
-0 */18 * * * /usr/bin/python3 ~/ssid_rotator/rotate_ssid.py >> /var/log/ssid-rotator.log 2>&1 || echo "SSID rotation failed at $(date)" >> /var/log/ssid-rotator-errors.log
+0 */18 * * * /usr/bin/python3 ~/ssid_rotator/src/rotate_ssid.py >> /var/log/ssid-rotator.log 2>&1 || echo "SSID rotation failed at $(date)" >> /var/log/ssid-rotator-errors.log
 
 # Create health check script
 # ~/ssid_rotator/health_check.sh
@@ -3028,7 +3028,7 @@ crontab -e
 
 ```bash
 # Force rotation immediately
-python3 ~/ssid_rotator/rotate_ssid.py
+python3 ~/ssid_rotator/src/rotate_ssid.py
 
 # Reset state to start from beginning
 echo '{"current_index": 0, "wlan_id": null}' > /var/lib/ssid_rotator/state.json
