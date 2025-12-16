@@ -18,8 +18,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 UDR_HOST = "192.168.102.1"
 USERNAME = "admin"
 PASSWORD = "C0,5prings@@@"  # Your actual password
-# UDR7 requires /proxy/network prefix
-BASE_URL = f"https://{UDR_HOST}/proxy/network"
+# UDR7 uses different endpoints: UniFi OS for auth, Network Controller for WLAN ops
+OS_URL = f"https://{UDR_HOST}"  # UniFi OS API
+NETWORK_URL = f"https://{UDR_HOST}/proxy/network"  # Network Controller API
 
 def test_connection():
     """Run comprehensive API tests"""
@@ -44,7 +45,7 @@ def test_connection():
     session = requests.Session()
     try:
         response = session.post(
-            f"{BASE_URL}/api/auth/login",
+            f"{OS_URL}/api/auth/login",
             json={"username": USERNAME, "password": PASSWORD},
             verify=False,
             timeout=10
@@ -66,7 +67,7 @@ def test_connection():
     print("Test 3: Fetching WiFi networks...")
     try:
         response = session.get(
-            f"{BASE_URL}/api/s/default/rest/wlanconf",
+            f"{NETWORK_URL}/api/s/default/rest/wlanconf",
             verify=False,
             timeout=10
         )
@@ -112,7 +113,7 @@ def test_connection():
     print("Test 4: Fetching system information...")
     try:
         response = session.get(
-            f"{BASE_URL}/api/s/default/stat/sysinfo",
+            f"{NETWORK_URL}/api/s/default/stat/sysinfo",
             verify=False,
             timeout=10
         )

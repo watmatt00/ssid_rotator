@@ -22,25 +22,28 @@ CONFIG = {
 class UniFiAPI:
     def __init__(self, host, username, password):
         self.host = host
-        # UDR7 requires /proxy/network prefix for network controller API
-        self.base_url = f"https://{host}/proxy/network"
+        # UDR7 uses different endpoints for OS vs Network Controller
+        self.os_url = f"https://{host}"  # UniFi OS API (for login)
+        self.network_url = f"https://{host}/proxy/network"  # Network Controller API (for WLAN operations)
         self.session = requests.Session()
         self.login(username, password)
     
     def login(self, username, password):
-        url = f"{self.base_url}/api/auth/login"
+        # Login uses UniFi OS API (no /proxy/network prefix)
+        url = f"{self.os_url}/api/auth/login"
         data = {"username": username, "password": password}
         response = self.session.post(url, json=data, verify=False)
         response.raise_for_status()
         print(f"[{datetime.now()}] Logged in successfully")
     
     def get_wlan_configs(self):
-        url = f"{self.base_url}/api/s/default/rest/wlanconf"
+        # WLAN operations use Network Controller API (with /proxy/network prefix)
+        url = f"{self.network_url}/api/s/default/rest/wlanconf"
         response = self.session.get(url, verify=False)
         return response.json()['data']
     
     def get_wlan_by_id(self, wlan_id):
-        url = f"{self.base_url}/api/s/default/rest/wlanconf/{wlan_id}"
+        url = f"{self.network_url}/api/s/default/rest/wlanconf/{wlan_id}"
         response = self.session.get(url, verify=False)
         return response.json()['data'][0]
     
@@ -52,7 +55,7 @@ class UniFiAPI:
         return None
     
     def update_ssid(self, wlan_id, new_ssid):
-        url = f"{self.base_url}/api/s/default/rest/wlanconf/{wlan_id}"
+        url = f"{self.network_url}/api/s/default/rest/wlanconf/{wlan_id}"
         
         # Get current config
         current_config = self.get_wlan_by_id(wlan_id)
