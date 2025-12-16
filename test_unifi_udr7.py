@@ -138,7 +138,6 @@ def test_connection():
     print("  - 7Oaks-IOT")
     print("  - newnative")
     print("  - 7Oaks-Work")
-    print("  - tRump is a traitor")
     print()
     print("Target SSID (will be rotated):")
     print("  - Fuck the orange turd (ID: 69363fd4005cd02fa28ab902)")

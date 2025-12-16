@@ -15,10 +15,10 @@ This system automatically rotates a WiFi SSID through a list of names every 18 h
 
 ### System Specifications
 
-**Hardware:** UniFi Dream Router (UDR) Pro 7  
-**Network:** 192.168.102.1  
-**Target SSID:** "Fuck the orange turd" (ID: `69363fd4005cd02fa28ab902`)  
-**Protected Networks:** 7Oaks, 7Oaks-IOT, newnative, 7Oaks-Work, tRump is a traitor  
+**Hardware:** UniFi Dream Router (UDR) Pro 7
+**Network:** 192.168.102.1
+**Target SSID:** "Fuck the orange turd" (ID: `69363fd4005cd02fa28ab902`)
+**Protected Networks:** 7Oaks, 7Oaks-IOT, newnative, 7Oaks-Work
 **API Endpoint:** `https://192.168.102.1/proxy/network/api/s/default/rest/wlanconf`
 
 **Note:** UDR7 routers require `/proxy/network` prefix for all network controller API calls.
@@ -119,8 +119,7 @@ Create `/var/lib/ssid_rotator/ssid_list.json`:
     "7Oaks",
     "7Oaks-IOT",
     "newnative",
-    "7Oaks-Work",
-    "tRump is a traitor"
+    "7Oaks-Work"
   ],
   "last_updated": "2024-12-11T10:00:00",
   "updated_by": "initial_setup"
@@ -135,7 +134,6 @@ Create `/var/lib/ssid_rotator/ssid_list.json`:
   - `7Oaks-IOT` - Your IoT 2.4GHz network
   - `newnative` - Your secondary 5GHz network
   - `7Oaks-Work` - Your work network (both bands)
-  - `tRump is a traitor` - Your other visible network (not rotating)
 - The SSID **"Fuck the orange turd"** (ID: `69363fd4005cd02fa28ab902`) will be rotated
 - With 5 SSIDs active at 18-hour intervals = **3.75 days per full cycle**
 - With 7 SSIDs active at 18-hour intervals = **5.25 days per full cycle**
@@ -1137,8 +1135,7 @@ Edit `/var/lib/ssid_rotator/ssid_list.json` and configure your lists:
     "7Oaks",
     "7Oaks-IOT",
     "newnative",
-    "7Oaks-Work",
-    "tRump is a traitor"
+    "7Oaks-Work"
   ],
   "last_updated": null,
   "updated_by": "initial_setup"

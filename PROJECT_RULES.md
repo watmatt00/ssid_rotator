@@ -54,32 +54,26 @@ https://192.168.102.1/proxy/network/api/...
 ### Protected SSIDs (NEVER MODIFY)
 These are production networks that must NEVER be touched by the rotation script:
 
-1. **7Oaks** 
+1. **7Oaks**
    - ID: `692e47980f81923534aec614`
    - Type: Main network (5GHz, hidden)
    - Security: WPA2
-   
+
 2. **7Oaks-IOT**
    - ID: `692e4c4b0f81923534aec68a`
    - Type: IoT network (2.4GHz, hidden)
    - Security: WPA2
    - L2 Isolation: Enabled
-   
+
 3. **newnative**
    - ID: `692e4dc40f81923534aec6d4`
    - Type: Secondary network (5GHz, hidden)
    - Security: WPA2
-   
+
 4. **7Oaks-Work**
    - ID: `6935e0c5005cd02fa28aa8bf`
    - Type: Work network (both bands, hidden)
    - Security: WPA2
-   
-5. **tRump is a traitor**
-   - ID: `6939bad9005cd02fa28b37c1`
-   - Type: Visible network (2.4GHz, open)
-   - Security: Open (no password)
-   - Note: NOT rotating, but protected
 
 ### Target SSID (ROTATION ENABLED)
 **Name:** "Fuck the orange turd"  
@@ -111,7 +105,7 @@ The system uses a two-stage approach for managing SSID names:
 - **Management:** Web UI for promoting/demoting between active and reserve
 
 #### Protected List
-- **Size:** 5 networks (listed above)
+- **Size:** 4 networks (listed above)
 - **Purpose:** Production networks that will never be modified
 - **Enforcement:** Multiple safety checks in code
 
@@ -194,7 +188,7 @@ pip3 install flask requests --break-system-packages
 
 ### Non-Negotiable Requirements
 1. ✅ **18-hour rotation interval** - Must not change
-2. ✅ **Protected SSIDs** - Must never be modified under any circumstances
+2. ✅ **4 Protected SSIDs** - Must never be modified under any circumstances
 3. ✅ **Sequential rotation** - Predictable order through active list
 4. ✅ **UDR7 API paths** - Must use `/proxy/network` prefix
 5. ✅ **Raspberry Pi Zero W** - Target hardware platform
@@ -207,7 +201,7 @@ pip3 install flask requests --break-system-packages
 - Web interface port (5000 default, changeable)
 
 ### Prohibited Actions
-- ❌ Never modify any of the 5 protected SSIDs
+- ❌ Never modify any of the 4 protected SSIDs
 - ❌ Never use rotation interval shorter than 18 hours
 - ❌ Never hardcode passwords in non-config files
 - ❌ Never disable safety checks
@@ -269,7 +263,6 @@ UniFi Dream Router Pro 7 (192.168.102.1)
     ├── 7Oaks-IOT (2.4GHz, hidden) [PROTECTED]
     ├── newnative (5GHz, hidden) [PROTECTED]
     ├── 7Oaks-Work (both bands, hidden) [PROTECTED]
-    ├── tRump is a traitor (2.4GHz, visible) [PROTECTED]
     └── Fuck the orange turd (2.4GHz, visible) [ROTATING]
              ↑
              Managed by
