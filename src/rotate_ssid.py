@@ -26,6 +26,7 @@ class UniFiAPI:
         self.os_url = f"https://{host}"  # UniFi OS API (for login)
         self.network_url = f"https://{host}/proxy/network"  # Network Controller API (for WLAN operations)
         self.session = requests.Session()
+        self.csrf_token = None
         self.login(username, password)
     
     def login(self, username, password):
@@ -34,7 +35,13 @@ class UniFiAPI:
         data = {"username": username, "password": password}
         response = self.session.post(url, json=data, verify=False)
         response.raise_for_status()
-        print(f"[{datetime.now()}] Logged in successfully")
+        
+        # Extract CSRF token from response headers (required for write operations)
+        self.csrf_token = response.headers.get('X-Csrf-Token') or response.headers.get('x-csrf-token')
+        if self.csrf_token:
+            print(f"[{datetime.now()}] Logged in successfully (CSRF token acquired)")
+        else:
+            print(f"[{datetime.now()}] Logged in successfully (no CSRF token found)")
     
     def get_wlan_configs(self):
         # WLAN operations use Network Controller API (with /proxy/network prefix)
@@ -64,8 +71,13 @@ class UniFiAPI:
         old_name = current_config['name']
         current_config['name'] = new_ssid
         
+        # Prepare headers with CSRF token (required for write operations)
+        headers = {}
+        if self.csrf_token:
+            headers['X-Csrf-Token'] = self.csrf_token
+        
         # Send the update
-        response = self.session.put(url, json=current_config, verify=False)
+        response = self.session.put(url, json=current_config, headers=headers, verify=False)
         response.raise_for_status()
         
         print(f"[{datetime.now()}] Updated SSID from '{old_name}' to '{new_ssid}'")
