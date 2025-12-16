@@ -239,6 +239,168 @@ pip3 install flask requests --break-system-packages
 
 ---
 
+## Development Workflow
+
+### Environment Separation
+
+The project follows a strict development/production separation pattern inspired by the picframe_3.0 project.
+
+#### PC/Laptop (Development Environment)
+**Allowed:**
+- ✅ Edit all Python scripts locally
+- ✅ Edit configuration templates
+- ✅ Test syntax and logic changes
+- ✅ Commit and push to GitHub repository
+- ✅ Review and merge pull requests
+
+**Prohibited:**
+- ❌ Never run production rotation script on PC (risk to live network)
+- ❌ Never edit files directly on Pi filesystem
+- ❌ Never SSH to Pi and edit code with nano/vim
+
+#### Raspberry Pi (Production Environment)
+**Allowed:**
+- ✅ Pull updates using: `bash ~/ssid_rotator/update_app.sh`
+- ✅ Edit SSID lists via web UI (http://rotator.local:5000)
+- ✅ View logs and monitor system status
+- ✅ Manual rotation for testing: `python3 ~/ssid_rotator/rotate_ssid.py`
+
+**Prohibited:**
+- ❌ Never edit Python files directly on Pi
+- ❌ Never make git commits from Pi
+- ❌ Never manually edit `/var/lib/ssid_rotator/ssid_list.json` (use web UI)
+
+### Repository Structure
+
+```
+~/ssid_rotator/                    # Code repository (managed by git)
+├── src/                           # Python scripts (to be created)
+│   ├── rotate_ssid.py            # Main rotation logic
+│   └── web_manager.py            # Flask web interface
+├── deployment/                    # Deployment files (to be created)
+│   └── systemd/                  # Service files
+│       ├── ssid-rotator.service
+│       ├── ssid-rotator.timer
+│       └── ssid-web-manager.service
+├── config/                        # Configuration templates
+│   └── ssid_list.example.json
+├── update_app.sh                  # Update script (to be created)
+├── requirements.txt               # Python dependencies
+├── .gitignore                     # Git ignore rules
+└── README.md                      # Project overview
+```
+
+### Update Workflow
+
+**From PC (Development):**
+```bash
+# 1. Make changes to Python scripts locally
+cd ~/path/to/ssid_rotator
+
+# 2. Test syntax (optional but recommended)
+python3 -m py_compile src/rotate_ssid.py
+python3 -m py_compile src/web_manager.py
+
+# 3. Commit and push to GitHub
+git add .
+git commit -m "Description of changes"
+git push origin main
+```
+
+**On Pi (Production):**
+```bash
+# Single command to update everything
+ssh pi@rotator.local
+bash ~/ssid_rotator/update_app.sh
+```
+
+**What `update_app.sh` does:**
+1. Fetches latest code from GitHub (`git fetch --all`)
+2. Resets local repo to origin/main (`git reset --hard origin/main`)
+3. Cleans Python cache (`__pycache__`, `.pyc` files)
+4. Sets execute permissions on scripts
+5. Restarts web interface service
+6. Logs all actions to `/var/log/ssid-rotator.log`
+
+### Read-Only Pi Approach
+
+The Pi filesystem is read-only for code, writable only for runtime data:
+
+**Read-Only (Code):**
+- `~/ssid_rotator/` - Managed by git, never edited manually
+
+**Writable (Runtime State):**
+- `/var/lib/ssid_rotator/` - SSID lists, rotation state, backups
+- `/var/log/` - Log files
+- `/tmp/` - Temporary files
+
+### File Ownership and Permissions
+
+```bash
+# Repository (git-managed, owned by pi)
+~/ssid_rotator/                    # pi:pi, 755
+  ├── *.py                         # pi:pi, 755 (executable)
+  └── deployment/                  # pi:pi, 755
+
+# Runtime state (web UI can modify)
+/var/lib/ssid_rotator/             # pi:pi, 755
+  ├── ssid_list.json               # pi:pi, 644 (editable via web UI)
+  ├── state.json                   # pi:pi, 644 (updated by rotation script)
+  └── *.backup                     # pi:pi, 644 (auto-generated)
+
+# Logs (append only)
+/var/log/ssid-rotator.log          # pi:pi, 644
+```
+
+### Configuration vs Code
+
+**Configuration Files (Editable in Production):**
+- `/var/lib/ssid_rotator/ssid_list.json` - Via web UI
+- User-managed via web interface, never committed to git
+
+**Code Files (Edit on PC Only):**
+- `~/ssid_rotator/*.py` - All Python scripts
+- `~/ssid_rotator/deployment/*` - Service files
+- Managed in git repository, deployed via update_app.sh
+
+### Emergency Procedures
+
+**If Pi is in bad state:**
+```bash
+# 1. SSH to Pi
+ssh pi@rotator.local
+
+# 2. Hard reset repository
+cd ~/ssid_rotator
+git fetch --all
+git reset --hard origin/main
+git clean -fd
+
+# 3. Restart services
+sudo systemctl restart ssid-web-manager
+```
+
+**If need to rollback:**
+```bash
+# On Pi: Rollback to previous commit
+cd ~/ssid_rotator
+git log --oneline -5  # Find previous commit hash
+git reset --hard <commit-hash>
+sudo systemctl restart ssid-web-manager
+```
+
+### Best Practices
+
+1. **Always test on PC first** - Syntax errors, logic checks
+2. **Small commits** - Easier to debug and rollback
+3. **Descriptive commit messages** - Clear intent and changes
+4. **Update frequently** - Keep Pi in sync with repository
+5. **Backup before major changes** - Copy state files
+6. **Use web UI for SSID management** - Never edit JSON directly
+7. **Monitor logs after updates** - Check `/var/log/ssid-rotator.log`
+
+---
+
 ## Future Enhancements (Documented, Not Implemented)
 
 ### Rotation Strategies (Optional)
@@ -314,6 +476,18 @@ UniFi Dream Router Pro 7 (192.168.102.1)
 
 ## Change Log
 
+### v1.2 - December 16, 2024
+- Added comprehensive Development Workflow section
+  - Environment separation (PC dev, Pi production)
+  - Git-based update workflow with update_app.sh
+  - Repository structure documentation
+  - Read-only Pi approach with writable state directories
+  - File ownership and permissions
+  - Emergency procedures and rollback instructions
+  - Best practices for maintaining workflow
+- Updated repository location: ~/ssid_rotator (was /opt/ssid-rotator)
+- Aligned with picframe_3.0 deployment pattern
+
 ### v1.1 - December 16, 2024
 - Raspberry Pi host configuration documented
   - Hostname: rotator (rotator.local)
@@ -340,5 +514,5 @@ UniFi Dream Router Pro 7 (192.168.102.1)
 ---
 
 **Last Updated:** December 16, 2024  
-**Document Version:** 1.1  
+**Document Version:** 1.2  
 **Status:** Canonical - All information in this document is authoritative for the project
