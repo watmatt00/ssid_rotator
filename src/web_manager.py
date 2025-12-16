@@ -243,6 +243,80 @@ HTML_TEMPLATE = '''
             display: flex;
             gap: 5px;
         }
+        .btn-make-next {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .btn-make-next:hover:not(:disabled) {
+            background: #218838;
+        }
+        .btn-make-next:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        .btn-rotate {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+            transition: background 0.2s;
+        }
+        .btn-rotate:hover:not(:disabled) {
+            background: #0056b3;
+        }
+        .btn-rotate:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        .rotate-status {
+            margin-top: 10px;
+            padding: 12px;
+            border-radius: 4px;
+            display: none;
+            font-size: 14px;
+        }
+        .rotate-status.show {
+            display: block;
+        }
+        .rotate-status.loading {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffc107;
+        }
+        .rotate-status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .rotate-status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .ssid-item.next-item {
+            border-left: 4px solid #ffc107;
+            background: #fffbf0;
+        }
+        .tag.next {
+            background: #ffc107;
+            color: #000;
+        }
+        .tag.current {
+            background: #007bff;
+        }
     </style>
 </head>
 <body>
@@ -272,6 +346,13 @@ HTML_TEMPLATE = '''
                 <span class="status-label">Full Cycle Time:</span>
                 <span class="status-value">{{ ((active|length * 18) / 24)|round(1) }} days</span>
             </div>
+            
+            <div class="status-row" style="margin-top: 20px;">
+                <button onclick="rotateNow()" id="rotateBtn" class="btn-rotate">
+                    🔄 Rotate SSID Now
+                </button>
+            </div>
+            <div id="rotateStatus" class="rotate-status"></div>
         </div>
         {% endif %}
 
@@ -291,17 +372,22 @@ HTML_TEMPLATE = '''
             <div class="list-container">
                 {% if active %}
                     {% for ssid in active %}
-                    <div class="ssid-item {% if state and loop.index0 == state.current_index %}current{% endif %}">
+                    <div class="ssid-item {% if state and loop.index0 == state.current_index %}current{% endif %} {% if state and loop.index0 == (state.current_index + 1) % active|length %}next-item{% endif %}">
                         <div class="ssid-name">
                             <span class="ssid-index">{{ loop.index }}</span>
                             <span>{{ ssid }}</span>
                             {% if state and loop.index0 == state.current_index %}
-                                <span class="tag current">Current</span>
+                                <span class="tag current">CURRENT</span>
                             {% elif state and loop.index0 == (state.current_index + 1) % active|length %}
-                                <span class="tag next">Next</span>
+                                <span class="tag next">NEXT</span>
                             {% endif %}
                         </div>
                         <div class="button-group">
+                            {% if state and loop.index0 == (state.current_index + 1) % active|length %}
+                                <button class="btn btn-make-next" disabled>✓ Next</button>
+                            {% else %}
+                                <button class="btn btn-make-next" onclick="makeNext({{ loop.index0 }}, '{{ ssid }}')">Make Next</button>
+                            {% endif %}
                             <button class="btn btn-secondary" onclick="moveToReserve('{{ ssid }}')">→ Reserve</button>
                             <button class="btn btn-delete" onclick="deleteSSID('{{ ssid }}', 'active')">Delete</button>
                         </div>
@@ -478,6 +564,80 @@ HTML_TEMPLATE = '''
                 }
             });
         }
+
+        function makeNext(targetIndex, ssidName) {
+            if (!confirm(`Make "${ssidName}" the next SSID to rotate to?`)) {
+                return;
+            }
+            
+            fetch(`/api/set_next/${targetIndex}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert(data.message);
+                    // Reload to show updated "NEXT" badge
+                    setTimeout(() => window.location.reload(), 500);
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Network error: ' + error);
+            });
+        }
+
+        function rotateNow() {
+            const btn = document.getElementById('rotateBtn');
+            const statusDiv = document.getElementById('rotateStatus');
+            
+            if (!confirm('Push the staged SSID live to UniFi now?')) {
+                return;
+            }
+            
+            // Disable button and show loading
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Rotating...';
+            statusDiv.className = 'rotate-status show loading';
+            statusDiv.innerHTML = 'Pushing SSID to UniFi...';
+            
+            fetch('/api/rotate_now', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    statusDiv.className = 'rotate-status show success';
+                    statusDiv.innerHTML = '✅ ' + data.message;
+                    
+                    // Reload page after 2 seconds to show new SSID
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    statusDiv.className = 'rotate-status show error';
+                    statusDiv.innerHTML = '❌ ' + data.message;
+                    if (data.error) {
+                        statusDiv.innerHTML += '<br><small>' + data.error + '</small>';
+                    }
+                    btn.disabled = false;
+                    btn.innerHTML = '🔄 Rotate SSID Now';
+                }
+            })
+            .catch(error => {
+                statusDiv.className = 'rotate-status show error';
+                statusDiv.innerHTML = '❌ Network error: ' + error;
+                btn.disabled = false;
+                btn.innerHTML = '🔄 Rotate SSID Now';
+            });
+        }
     </script>
 </body>
 </html>
@@ -609,6 +769,93 @@ def move_ssid():
     save_ssid_data(data)
     
     return jsonify({'success': True})
+
+@app.route('/api/set_next/<int:target_index>', methods=['POST'])
+def set_next(target_index):
+    """Set which SSID should be next in rotation"""
+    try:
+        ssid_data = load_ssid_data()
+        state = load_state()
+        
+        if state is None:
+            return jsonify({
+                'status': 'error',
+                'message': 'No state file found. Run rotation script first.'
+            }), 400
+        
+        active_list = ssid_data.get('active_rotation', [])
+        
+        # Validate target index
+        if target_index < 0 or target_index >= len(active_list):
+            return jsonify({
+                'status': 'error',
+                'message': f'Invalid index. Must be 0-{len(active_list)-1}'
+            }), 400
+        
+        # Calculate what current_index should be to make target_index next
+        # If next rotation is (current + 1) % len, then:
+        # current = (target - 1 + len) % len
+        new_current = (target_index - 1 + len(active_list)) % len(active_list)
+        
+        # Update state
+        state['current_index'] = new_current
+        state['staged_by_user'] = True  # Flag to indicate manual staging
+        state['staged_at'] = datetime.now().isoformat()
+        
+        # Save state
+        with open(CONFIG['state_file'], 'w') as f:
+            json.dump(state, f, indent=2)
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Next rotation will use: {active_list[target_index]}',
+            'next_ssid': active_list[target_index],
+            'next_index': target_index
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/rotate_now', methods=['POST'])
+def rotate_now():
+    """Manually trigger SSID rotation"""
+    try:
+        import subprocess
+        
+        # Run the rotation script
+        result = subprocess.run(
+            ['/usr/bin/python3', '/home/pi/ssid_rotator/src/rotate_ssid.py'],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode == 0:
+            return jsonify({
+                'status': 'success',
+                'message': 'SSID rotation completed successfully',
+                'output': result.stdout
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Rotation script failed',
+                'error': result.stderr
+            }), 500
+            
+    except subprocess.TimeoutExpired:
+        return jsonify({
+            'status': 'error',
+            'message': 'Rotation script timed out (>30s)'
+        }), 500
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)

@@ -80,7 +80,17 @@ class UniFiAPI:
         response = self.session.put(url, json=current_config, headers=headers, verify=False)
         response.raise_for_status()
         
-        print(f"[{datetime.now()}] Updated SSID from '{old_name}' to '{new_ssid}'")
+        # Verify the change actually took effect (atomicity check)
+        import time
+        time.sleep(1)  # Brief delay to allow UniFi to apply change
+        updated_wlan = self.get_wlan_by_id(wlan_id)
+        if updated_wlan['name'] != new_ssid:
+            raise Exception(
+                f"SSID update verification failed: expected '{new_ssid}', "
+                f"but UniFi shows '{updated_wlan['name']}'"
+            )
+        
+        print(f"[{datetime.now()}] Updated SSID from '{old_name}' to '{new_ssid}' (verified)")
         return response.json()
 
 class SSIDRotator:
