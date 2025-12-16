@@ -1,0 +1,9 @@
+[Unit]
+Description=SSID Rotator Service
+
+[Service]
+Type=oneshot
+User=pi
+ExecStart=/usr/bin/python3 /home/pi/ssid_rotator/src/rotate_ssid.py
+StandardOutput=append:/var/log/ssid-rotator.log
+StandardError=append:/var/log/ssid-rotator.log

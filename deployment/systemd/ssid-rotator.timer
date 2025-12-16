@@ -1,0 +1,10 @@
+[Unit]
+Description=SSID Rotator Timer
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=18h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

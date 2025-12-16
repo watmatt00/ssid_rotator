@@ -1,0 +1,14 @@
+[Unit]
+Description=SSID Rotation Web Manager
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/ssid_rotator
+ExecStart=/usr/bin/python3 /home/pi/ssid_rotator/src/web_manager.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
