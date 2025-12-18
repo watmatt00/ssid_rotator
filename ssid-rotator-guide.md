@@ -6,12 +6,18 @@ This system automatically rotates a WiFi SSID through a list of names every 18 h
 
 ### Features
 
-- 🔄 Automatic SSID rotation every 18 hours
-- 🌐 Web interface to manage SSID list
-- 🔒 Protected SSID list (never modified)
-- 📊 Visual status display showing current/next SSID
-- ✅ Safety checks to prevent modifying production SSIDs
-- 📝 JSON-based configuration (easy to backup/restore)
+- 🔄 **Automatic SSID rotation** every 18 hours via systemd timer
+- 🌐 **Web interface** to manage SSID lists with HTTPS support
+- 🚦 **Live status dashboard** with stoplight indicators (🟢 green = success, 🔴 red = error, 🟡 amber = unknown)
+- 🔄 **Auto-refresh dashboard** - updates every 60 seconds with pauseable countdown
+- 📅 **Next scheduled rotation** - shows exact time from systemd timer
+- 🔒 **Protected SSID list** - never modified by rotation script
+- ✅ **SSID validation** - enforces 802.11 standards (max 32 bytes UTF-8)
+- 🛡️ **Character checks** - blocks control characters and problematic symbols
+- 🎯 **Manual rotation button** - instant rotation with web UI feedback
+- 📊 **Visual status display** - current/next SSID with formatted timestamps
+- 💾 **Multiple safety checks** - prevent modifying production SSIDs
+- 📝 **JSON-based configuration** - easy to backup/restore
 
 ### System Specifications
 
@@ -1466,14 +1472,97 @@ The **Reserve Pool** section stores SSIDs not currently rotating:
 3. See which ones get noticed/reactions
 4. Keep winners in active, move duds back to reserve
 
-### Features
+### Dashboard Features
 
-✅ **Two-Stage List Management** - Active rotation vs. reserve pool  
-✅ **Real-time Status** - Current SSID, next SSID, cycle time  
-✅ **One-Click Movement** - Promote/demote between lists  
-✅ **Visual Indicators** - Current highlighted, next marked  
-✅ **Safety Validation** - Prevents duplicates across lists  
-✅ **Protected SSIDs** - Separate management for production networks  
+✅ **Two-Stage List Management** - Active rotation vs. reserve pool
+✅ **Live Rotation Status** - Stoplight indicators (🟢 green = success, 🔴 red = error, 🟡 amber = unknown)
+✅ **Auto-Refresh** - Dashboard updates every 60 seconds with pauseable countdown timer
+✅ **Next Scheduled Rotation** - Shows exact time from systemd timer
+✅ **Manual Rotation Button** - Trigger rotation instantly with real-time feedback
+✅ **Formatted Timestamps** - Clean yyyy-mm-dd hh:mm format for all times
+✅ **Real-time Status** - Current SSID, next SSID, position in cycle
+✅ **One-Click Movement** - Promote/demote between lists
+✅ **Visual Indicators** - Current highlighted, next marked
+✅ **SSID Validation** - Real-time validation against 802.11 standards
+✅ **Safety Validation** - Prevents duplicates and invalid names
+✅ **Protected SSIDs** - Separate management for production networks
+
+**Status Dashboard Display:**
+```
+Current SSID:              Don't believe his lies
+Next Rotation SSID:        ICE American Gestapo
+Next Scheduled Rotation:   2025-12-18 19:46
+Last Rotation:             🟢 2025-12-18 08:28
+Position in Cycle:         4 of 6
+Full Cycle Time:           4.5 days
+```
+
+---
+
+## SSID Validation System
+
+The system enforces **802.11 WiFi standard compliance** to prevent API errors and ensure compatibility.
+
+### Validation Rules
+
+**Length Requirements:**
+- ✅ Maximum: **32 bytes** (UTF-8 encoded)
+- ✅ Minimum: **1 character**
+- ❌ Empty SSIDs rejected
+- ⚠️ Unicode characters count as multiple bytes
+
+**Character Restrictions:**
+- ❌ **Control characters** (ASCII 0-31) - blocks tabs, newlines, etc.
+- ❌ **DEL character** (ASCII 127)
+- ⚠️ Leading/trailing spaces automatically trimmed
+- ✅ Printable ASCII and UTF-8 allowed
+
+**Validation Points:**
+1. **Web Interface** - Validates before adding to any list
+2. **Rotation Script** - Validates all lists on load
+3. **API Submission** - Final check before sending to UniFi
+
+### Examples
+
+**Valid SSIDs:**
+```
+✓ "Pretty Fly for a WiFi" (21 bytes)
+✓ "MAGA = NAZI" (11 bytes)
+✓ "🚀 WiFi" (9 bytes - emoji is 4 bytes)
+✓ "AAAAAA..." (exactly 32 bytes)
+```
+
+**Invalid SSIDs:**
+```
+✗ "Donnie & Jeffery = Besties 4 life" (33 bytes - TOO LONG)
+✗ "Has	Tab	Characters" (contains tabs)
+✗ "Has\nNewline" (contains newline)
+✗ "  Leading spaces" (leading whitespace)
+✗ "" (empty string)
+```
+
+### Auto-Fix Suggestions
+
+When validation fails, the system provides automatic fix suggestions:
+- **Too long?** Truncates to 32 bytes safely (preserves UTF-8 sequences)
+- **Control chars?** Removes them automatically
+- **Spaces?** Trims leading/trailing whitespace
+
+**Example Web UI Error:**
+```json
+{
+  "error": "SSID is too long: 33 bytes (max 32 bytes)",
+  "suggestion": "Donnie & Jeffery = Besties 4 lif",
+  "byte_length": 33
+}
+```
+
+### Testing SSID Validation
+
+Test the validator module directly:
+```bash
+python3 ~/ssid_rotator/src/ssid_validator.py
+```
 
 ---
 

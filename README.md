@@ -4,13 +4,17 @@ Automatically rotate a WiFi SSID through a list of funny names every 18 hours on
 
 ## Features
 
-- 🔄 **Automatic rotation** every 18 hours
-- 🌐 **Web interface** for easy SSID management
+- 🔄 **Automatic rotation** every 18 hours via systemd timer
+- 🌐 **Web interface** for easy SSID management (HTTPS-enabled)
+- 🚦 **Live status dashboard** with stoplight indicators (green/red/amber)
+- 🔄 **Auto-refresh** - dashboard updates every 60 seconds with countdown
 - 🔒 **Protected networks** - production SSIDs are never modified
 - 📊 **Two-stage lists** - active rotation + reserve pool for better control
-- ✅ **Multiple safety checks** prevent accidental modifications
-- 🛡️ **State backups** with atomic file operations
+- ✅ **SSID validation** - 802.11 standard compliance (max 32 bytes)
+- 🛡️ **Multiple safety checks** prevent accidental modifications
+- 💾 **State backups** with atomic file operations
 - 📝 **Comprehensive logging** for monitoring and debugging
+- 🎯 **Manual rotation** via web UI button with instant feedback
 
 ## Quick Start
 
@@ -92,12 +96,14 @@ See [`PROJECT_RULES.md`](PROJECT_RULES.md) for complete configuration details in
 
 ## Safety Features
 
-✅ Protected SSID validation before every operation  
-✅ Process locking prevents concurrent rotations  
-✅ Atomic file writes with automatic backups  
-✅ WLAN ID verification and auto-recovery  
-✅ API retry logic with timeout protection  
-✅ State corruption detection and recovery  
+✅ **SSID Name Validation** - Enforces 802.11 standards (max 32 bytes UTF-8)
+✅ **Character Restriction Checks** - Blocks control characters and problematic symbols
+✅ **Protected SSID Validation** - Multiple checks before every operation
+✅ **Process Locking** - Prevents concurrent rotations
+✅ **Atomic File Writes** - Automatic backups with corruption recovery
+✅ **WLAN ID Verification** - Auto-recovery and validation
+✅ **API Retry Logic** - Timeout protection and error handling
+✅ **Real-time Status Monitoring** - Dashboard shows rotation success/failure
 
 ## Usage
 
@@ -106,22 +112,42 @@ See [`PROJECT_RULES.md`](PROJECT_RULES.md) for complete configuration details in
 python3 test_unifi_udr7.py
 ```
 
-### Manual Rotation
-```bash
-python3 /opt/ssid-rotator/rotate_ssid.py
+### Web Dashboard
+```
+https://rotator.local:5000
+# or https://192.168.102.205:5000
 ```
 
-### Web Interface
+**Dashboard Features:**
+- 🟢 Live rotation status with stoplight indicators
+- 📅 Next scheduled rotation time
+- 🔄 Manual rotation button
+- ⏱️ Auto-refresh every 60 seconds (pauseable)
+- 📝 Add/remove SSIDs with real-time validation
+- 🎯 Current SSID and next rotation preview
+
+### Manual Rotation (via CLI)
 ```bash
-python3 /opt/ssid-rotator/web_manager.py
-# Open browser to http://your-server-ip:5000
+python3 ~/ssid_rotator/src/rotate_ssid.py
+```
+
+### Update Deployment (from PC)
+```bash
+# Make changes locally, then:
+git push origin main
+
+# On Pi:
+ssh pi@rotator.local
+bash ~/ssid_rotator/ops_tools/update_app.sh
 ```
 
 ## Project Status
 
 - ✅ **Phase 1**: API testing and verification (Complete)
-- 🔲 **Phase 2**: Deployment to Raspberry Pi Zero W (Planned: Week of Dec 23, 2024)
-- 🔲 **Phase 3**: Production monitoring (Ongoing)
+- ✅ **Phase 2**: Deployment to Raspberry Pi Zero W (Complete - Dec 16, 2024)
+- ✅ **Phase 3**: SSID validation system (Complete - Dec 18, 2024)
+- ✅ **Phase 4**: Dashboard enhancements (Complete - Dec 18, 2024)
+- 🔄 **Phase 5**: Production monitoring (Ongoing)
 
 ## Hardware
 
