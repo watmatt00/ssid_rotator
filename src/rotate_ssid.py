@@ -4,6 +4,7 @@ import urllib3
 import json
 import os
 from datetime import datetime
+from ssid_validator import validate_ssid, validate_ssid_list, get_ssid_byte_length
 
 # Disable SSL warnings for self-signed cert
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -111,33 +112,62 @@ class SSIDRotator:
         """Load SSID list from JSON file with validation"""
         if not os.path.exists(self.ssid_list_file):
             raise Exception(f"SSID list file not found: {self.ssid_list_file}")
-        
+
         with open(self.ssid_list_file, 'r') as f:
             data = json.load(f)
-        
+
         # Load active rotation list (this is what gets rotated)
         self.ssid_list = data.get('active_rotation', [])
-        
+
         # Load reserve pool (for reference/logging only)
         self.reserve_pool = data.get('reserve_pool', [])
-        
+
         # Load protected SSIDs
         self.protected_ssids = data.get('protected_ssids', [])
-        
-        # Validation
+
+        # Basic validation
         if not self.ssid_list:
             raise Exception("Active rotation list is empty - add SSIDs before rotating")
-        
+
         if len(self.ssid_list) < 2:
             print(f"[{datetime.now()}] Warning: Only 1 SSID in active rotation - rotation will have no effect")
-        
+
         # Check for duplicates in active rotation
         if len(self.ssid_list) != len(set(self.ssid_list)):
             print(f"[{datetime.now()}] Warning: Duplicate SSIDs in active rotation")
-        
+
+        # SSID name validation - check all lists
+        validation_errors = []
+
+        # Validate active rotation SSIDs
+        all_valid, errors = validate_ssid_list(self.ssid_list, "Active rotation", strict=True)
+        if not all_valid:
+            validation_errors.extend(errors)
+
+        # Validate reserve pool SSIDs
+        all_valid, errors = validate_ssid_list(self.reserve_pool, "Reserve pool", strict=True)
+        if not all_valid:
+            validation_errors.extend(errors)
+
+        # Validate protected SSIDs (less strict since we don't control them)
+        all_valid, errors = validate_ssid_list(self.protected_ssids, "Protected SSIDs", strict=False)
+        if not all_valid:
+            validation_errors.extend(errors)
+
+        # If there are validation errors, log them and raise exception
+        if validation_errors:
+            print(f"[{datetime.now()}] SSID VALIDATION ERRORS:")
+            for error in validation_errors:
+                print(f"[{datetime.now()}]   - {error}")
+            raise Exception(
+                f"SSID validation failed with {len(validation_errors)} error(s). "
+                f"Please fix invalid SSID names in {self.ssid_list_file}. "
+                f"See log for details."
+            )
+
         # Calculate cycle time
         cycle_days = (len(self.ssid_list) * 18) / 24
-        
+
         print(f"[{datetime.now()}] Loaded {len(self.ssid_list)} SSIDs in active rotation ({cycle_days:.1f} days per cycle)")
         print(f"[{datetime.now()}] Reserve pool contains {len(self.reserve_pool)} SSIDs")
         print(f"[{datetime.now()}] Protected SSIDs: {', '.join(self.protected_ssids)}")

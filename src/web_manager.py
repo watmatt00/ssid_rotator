@@ -3,6 +3,7 @@ from flask import Flask, render_template_string, request, jsonify
 import json
 import os
 from datetime import datetime
+from ssid_validator import validate_ssid, get_ssid_byte_length, suggest_ssid_fix
 
 app = Flask(__name__)
 
@@ -662,20 +663,39 @@ def add_ssid():
     req_data = request.json
     ssid = req_data.get('ssid', '').strip()
     list_type = req_data.get('list_type', 'active')  # 'active', 'reserve', or 'protected'
-    
+
     if not ssid:
         return jsonify({'success': False, 'error': 'SSID name is required'})
-    
+
+    # Validate SSID name according to 802.11 standards
+    is_valid, error_msg = validate_ssid(ssid, strict=True)
+    if not is_valid:
+        # Try to suggest a fix
+        suggested = suggest_ssid_fix(ssid)
+        if suggested:
+            return jsonify({
+                'success': False,
+                'error': error_msg,
+                'suggestion': suggested,
+                'byte_length': get_ssid_byte_length(ssid)
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': error_msg,
+                'byte_length': get_ssid_byte_length(ssid)
+            })
+
     data = load_ssid_data()
-    
+
     # Check if SSID already exists in any list
-    all_ssids = (data.get('active_rotation', []) + 
-                 data.get('reserve_pool', []) + 
+    all_ssids = (data.get('active_rotation', []) +
+                 data.get('reserve_pool', []) +
                  data.get('protected_ssids', []))
-    
+
     if ssid in all_ssids:
         return jsonify({'success': False, 'error': 'SSID already exists in another list'})
-    
+
     # Add to appropriate list
     if list_type == 'protected':
         if 'protected_ssids' not in data:
@@ -689,11 +709,11 @@ def add_ssid():
         if 'active_rotation' not in data:
             data['active_rotation'] = []
         data['active_rotation'].append(ssid)
-    
+
     data['updated_by'] = 'web_interface'
     save_ssid_data(data)
-    
-    return jsonify({'success': True})
+
+    return jsonify({'success': True, 'byte_length': get_ssid_byte_length(ssid)})
 
 @app.route('/api/delete', methods=['POST'])
 def delete_ssid():
