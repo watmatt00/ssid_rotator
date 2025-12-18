@@ -96,14 +96,14 @@ See [`PROJECT_RULES.md`](PROJECT_RULES.md) for complete configuration details in
 
 ## Safety Features
 
-✅ **SSID Name Validation** - Enforces 802.11 standards (max 32 bytes UTF-8)
-✅ **Character Restriction Checks** - Blocks control characters and problematic symbols
-✅ **Protected SSID Validation** - Multiple checks before every operation
-✅ **Process Locking** - Prevents concurrent rotations
-✅ **Atomic File Writes** - Automatic backups with corruption recovery
-✅ **WLAN ID Verification** - Auto-recovery and validation
-✅ **API Retry Logic** - Timeout protection and error handling
-✅ **Real-time Status Monitoring** - Dashboard shows rotation success/failure
+- ✅ **SSID Name Validation** - Enforces 802.11 standards (max 32 bytes UTF-8)
+- ✅ **Character Restriction Checks** - Blocks control characters and problematic symbols
+- ✅ **Protected SSID Validation** - Multiple checks before every operation
+- ✅ **Process Locking** - Prevents concurrent rotations
+- ✅ **Atomic File Writes** - Automatic backups with corruption recovery
+- ✅ **WLAN ID Verification** - Auto-recovery and validation
+- ✅ **API Retry Logic** - Timeout protection and error handling
+- ✅ **Real-time Status Monitoring** - Dashboard shows rotation success/failure
 
 ## Usage
 
