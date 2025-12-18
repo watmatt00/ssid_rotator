@@ -1086,28 +1086,35 @@ def rotate_now():
     """Manually trigger SSID rotation"""
     try:
         import subprocess
-        
-        # Run the rotation script
-        result = subprocess.run(
-            ['/usr/bin/python3', '/home/pi/ssid_rotator/src/rotate_ssid.py'],
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
-        
+
+        # Run the rotation script and append output to log file
+        with open(CONFIG['log_file'], 'a') as log:
+            result = subprocess.run(
+                ['/usr/bin/python3', '/home/pi/ssid_rotator/src/rotate_ssid.py'],
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                text=True,
+                timeout=30
+            )
+
+        # Read the last few lines of the log to show in the response
+        with open(CONFIG['log_file'], 'r') as log:
+            lines = log.readlines()
+            last_output = ''.join(lines[-15:])  # Last 15 lines
+
         if result.returncode == 0:
             return jsonify({
                 'status': 'success',
                 'message': 'SSID rotation completed successfully',
-                'output': result.stdout
+                'output': last_output
             })
         else:
             return jsonify({
                 'status': 'error',
                 'message': 'Rotation script failed',
-                'error': result.stderr
+                'error': last_output
             }), 500
-            
+
     except subprocess.TimeoutExpired:
         return jsonify({
             'status': 'error',
