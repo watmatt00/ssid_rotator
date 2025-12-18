@@ -54,32 +54,43 @@ def get_rotation_status():
         return 'unknown', 'No log file found'
 
     try:
-        # Read last 100 lines of log file
+        # Read last 200 lines of log file
         with open(CONFIG['log_file'], 'r') as f:
             lines = f.readlines()
-            last_lines = lines[-100:] if len(lines) > 100 else lines
+            last_lines = lines[-200:] if len(lines) > 200 else lines
 
-        # Look for the most recent rotation attempt
+        # Find the most recent "Starting SSID rotator" to identify the last run
+        last_rotation_start_idx = -1
+        for i in range(len(last_lines) - 1, -1, -1):
+            if 'Starting SSID rotator' in last_lines[i]:
+                last_rotation_start_idx = i
+                break
+
+        if last_rotation_start_idx == -1:
+            return 'unknown', 'No recent rotation found in logs'
+
+        # Look at lines from the last rotation start to end
+        rotation_lines = last_lines[last_rotation_start_idx:]
+
+        # Check if this rotation completed successfully
         rotation_complete = False
         error_found = False
+        error_msg = None
 
-        for line in reversed(last_lines):
-            if 'Rotation complete' in line:
+        for line in rotation_lines:
+            if 'Rotation complete' in line or 'Updated SSID from' in line:
                 rotation_complete = True
-                break
-            elif 'ERROR:' in line or 'FAILED' in line:
+            elif 'ERROR:' in line:
                 error_found = True
-                # Extract error message
-                if 'ERROR:' in line:
-                    error_msg = line.split('ERROR:', 1)[1].strip()
-                    return 'error', f'Last rotation failed: {error_msg[:100]}'
+                error_msg = line.split('ERROR:', 1)[1].strip()
 
-        if rotation_complete:
+        # Determine status based on findings
+        if rotation_complete and not error_found:
             return 'success', 'Last rotation completed successfully'
         elif error_found:
-            return 'error', 'Last rotation encountered an error'
+            return 'error', f'Last rotation failed: {error_msg[:100] if error_msg else "Unknown error"}'
         else:
-            return 'unknown', 'No recent rotation found in logs'
+            return 'unknown', 'Rotation in progress or incomplete'
 
     except Exception as e:
         return 'unknown', f'Could not read log file: {str(e)}'
@@ -344,6 +355,39 @@ HTML_TEMPLATE = '''
         .status-indicator.unknown {
             background: #ffc107;
             box-shadow: 0 0 8px rgba(255, 193, 7, 0.6);
+        }
+        /* Auto-refresh indicator */
+        .refresh-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 1000;
+            transition: opacity 0.3s;
+        }
+        .refresh-indicator:hover {
+            background: rgba(0, 0, 0, 0.85);
+        }
+        .refresh-pause-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .refresh-pause-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: white;
         }
         .empty-state {
             text-align: center;
@@ -773,7 +817,58 @@ HTML_TEMPLATE = '''
                 btn.innerHTML = '🔄 Rotate SSID Now';
             });
         }
+
+        // Auto-refresh functionality
+        let refreshInterval = 60; // seconds
+        let refreshCountdown = refreshInterval;
+        let refreshTimer = null;
+        let isPaused = false;
+
+        function updateRefreshIndicator() {
+            const indicator = document.getElementById('refreshCountdown');
+            if (indicator) {
+                if (isPaused) {
+                    indicator.textContent = 'Paused';
+                } else {
+                    indicator.textContent = `Refreshing in ${refreshCountdown}s`;
+                }
+            }
+        }
+
+        function startRefreshTimer() {
+            refreshTimer = setInterval(() => {
+                if (!isPaused) {
+                    refreshCountdown--;
+                    updateRefreshIndicator();
+
+                    if (refreshCountdown <= 0) {
+                        window.location.reload();
+                    }
+                }
+            }, 1000);
+        }
+
+        function toggleRefreshPause() {
+            isPaused = !isPaused;
+            const btn = document.getElementById('pauseRefreshBtn');
+            if (btn) {
+                btn.textContent = isPaused ? 'Resume' : 'Pause';
+            }
+            updateRefreshIndicator();
+        }
+
+        // Start the refresh timer when page loads
+        window.addEventListener('DOMContentLoaded', function() {
+            updateRefreshIndicator();
+            startRefreshTimer();
+        });
     </script>
+
+    <!-- Auto-refresh indicator -->
+    <div class="refresh-indicator">
+        <span id="refreshCountdown">Refreshing in 60s</span>
+        <button class="refresh-pause-btn" id="pauseRefreshBtn" onclick="toggleRefreshPause()">Pause</button>
+    </div>
 </body>
 </html>
 '''
