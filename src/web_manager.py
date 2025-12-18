@@ -2,6 +2,8 @@
 from flask import Flask, render_template_string, request, jsonify
 import json
 import os
+import subprocess
+import re
 from datetime import datetime
 from ssid_validator import validate_ssid, get_ssid_byte_length, suggest_ssid_fix
 
@@ -9,7 +11,8 @@ app = Flask(__name__)
 
 CONFIG = {
     "ssid_list_file": "/var/lib/ssid_rotator/ssid_list.json",
-    "state_file": "/var/lib/ssid_rotator/state.json"
+    "state_file": "/var/lib/ssid_rotator/state.json",
+    "log_file": "/var/log/ssid-rotator.log"
 }
 
 def load_ssid_data():
@@ -36,9 +39,108 @@ def load_state():
     """Load rotation state"""
     if not os.path.exists(CONFIG['state_file']):
         return None
-    
+
     with open(CONFIG['state_file'], 'r') as f:
         return json.load(f)
+
+def get_rotation_status():
+    """
+    Get the status of the last rotation attempt.
+    Returns: tuple (status, message)
+        status: 'success', 'error', or 'unknown'
+        message: descriptive message
+    """
+    if not os.path.exists(CONFIG['log_file']):
+        return 'unknown', 'No log file found'
+
+    try:
+        # Read last 100 lines of log file
+        with open(CONFIG['log_file'], 'r') as f:
+            lines = f.readlines()
+            last_lines = lines[-100:] if len(lines) > 100 else lines
+
+        # Look for the most recent rotation attempt
+        rotation_complete = False
+        error_found = False
+
+        for line in reversed(last_lines):
+            if 'Rotation complete' in line:
+                rotation_complete = True
+                break
+            elif 'ERROR:' in line or 'FAILED' in line:
+                error_found = True
+                # Extract error message
+                if 'ERROR:' in line:
+                    error_msg = line.split('ERROR:', 1)[1].strip()
+                    return 'error', f'Last rotation failed: {error_msg[:100]}'
+
+        if rotation_complete:
+            return 'success', 'Last rotation completed successfully'
+        elif error_found:
+            return 'error', 'Last rotation encountered an error'
+        else:
+            return 'unknown', 'No recent rotation found in logs'
+
+    except Exception as e:
+        return 'unknown', f'Could not read log file: {str(e)}'
+
+def get_next_rotation_time():
+    """
+    Get the next scheduled rotation time from systemd timer.
+    Returns: datetime object or None
+    """
+    try:
+        # Run systemctl to get timer info
+        result = subprocess.run(
+            ['systemctl', 'list-timers', 'ssid-rotator.timer', '--no-pager'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+
+        if result.returncode == 0:
+            # Parse output to find the NEXT column
+            lines = result.stdout.strip().split('\n')
+            for line in lines:
+                if 'ssid-rotator.timer' in line:
+                    # Extract date/time from the line
+                    # Format: "Thu 2025-12-18 19:46:39 MST"
+                    match = re.search(r'(\w{3} \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})', line)
+                    if match:
+                        time_str = match.group(1)
+                        # Parse: "Thu 2025-12-18 19:46:39"
+                        dt = datetime.strptime(time_str, '%a %Y-%m-%d %H:%M:%S')
+                        return dt
+
+        return None
+
+    except Exception as e:
+        return None
+
+def format_datetime(dt_str):
+    """
+    Format datetime string to yyyy-mm-dd hh:mm
+    Args:
+        dt_str: ISO format datetime string (e.g., "2025-12-18T08:28:35.795344")
+    Returns:
+        Formatted string (e.g., "2025-12-18 08:28")
+    """
+    if not dt_str:
+        return 'Never'
+
+    try:
+        # Parse ISO format datetime
+        if isinstance(dt_str, str):
+            dt = datetime.fromisoformat(dt_str)
+        elif isinstance(dt_str, datetime):
+            dt = dt_str
+        else:
+            return str(dt_str)
+
+        # Format as yyyy-mm-dd hh:mm
+        return dt.strftime('%Y-%m-%d %H:%M')
+    except Exception:
+        return str(dt_str)
 
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
@@ -208,7 +310,8 @@ HTML_TEMPLATE = '''
         .status-row {
             display: flex;
             justify-content: space-between;
-            margin: 5px 0;
+            align-items: center;
+            margin: 8px 0;
             font-size: 14px;
         }
         .status-label {
@@ -217,6 +320,30 @@ HTML_TEMPLATE = '''
         .status-value {
             font-weight: bold;
             color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        /* Stoplight status indicators */
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 6px;
+            box-shadow: 0 0 4px rgba(0,0,0,0.3);
+        }
+        .status-indicator.success {
+            background: #28a745;
+            box-shadow: 0 0 8px rgba(40, 167, 69, 0.6);
+        }
+        .status-indicator.error {
+            background: #dc3545;
+            box-shadow: 0 0 8px rgba(220, 53, 69, 0.6);
+        }
+        .status-indicator.unknown {
+            background: #ffc107;
+            box-shadow: 0 0 8px rgba(255, 193, 7, 0.6);
         }
         .empty-state {
             text-align: center;
@@ -332,12 +459,19 @@ HTML_TEMPLATE = '''
                 <span class="status-value">{{ active[state.current_index] if state.current_index < active|length else 'N/A' }}</span>
             </div>
             <div class="status-row">
-                <span class="status-label">Next Rotation:</span>
+                <span class="status-label">Next Rotation SSID:</span>
                 <span class="status-value">{{ active[(state.current_index + 1) % active|length] if active else 'N/A' }}</span>
             </div>
             <div class="status-row">
+                <span class="status-label">Next Scheduled Rotation:</span>
+                <span class="status-value">{{ next_rotation_formatted }}</span>
+            </div>
+            <div class="status-row">
                 <span class="status-label">Last Rotation:</span>
-                <span class="status-value">{{ state.last_rotation or 'Never' }}</span>
+                <span class="status-value">
+                    <span class="status-indicator {{ rotation_status }}"></span>
+                    {{ last_rotation_formatted }}
+                </span>
             </div>
             <div class="status-row">
                 <span class="status-label">Position in Cycle:</span>
@@ -648,14 +782,27 @@ HTML_TEMPLATE = '''
 def index():
     data = load_ssid_data()
     state = load_state()
-    
+
+    # Get rotation status and next scheduled time
+    rotation_status, rotation_message = get_rotation_status()
+    next_rotation_time = get_next_rotation_time()
+
+    # Format timestamps
+    last_rotation_formatted = format_datetime(state.get('last_rotation')) if state else 'Never'
+    next_rotation_formatted = format_datetime(next_rotation_time) if next_rotation_time else 'Unknown'
+    last_updated_formatted = format_datetime(data.get('last_updated'))
+
     return render_template_string(
         HTML_TEMPLATE,
         active=data.get('active_rotation', []),
         reserve=data.get('reserve_pool', []),
         protected=data.get('protected_ssids', []),
-        last_updated=data.get('last_updated'),
-        state=state
+        last_updated=last_updated_formatted,
+        state=state,
+        rotation_status=rotation_status,
+        rotation_message=rotation_message,
+        last_rotation_formatted=last_rotation_formatted,
+        next_rotation_formatted=next_rotation_formatted
     )
 
 @app.route('/api/add', methods=['POST'])
