@@ -565,10 +565,10 @@ HTML_TEMPLATE = '''
                             {% if state and loop.index0 == (state.current_index + 1) % active|length %}
                                 <button class="btn btn-make-next" disabled>✓ Next</button>
                             {% else %}
-                                <button class="btn btn-make-next" onclick="makeNext({{ loop.index0 }}, '{{ ssid }}')">Make Next</button>
+                                <button class="btn btn-make-next" onclick="makeNext({{ loop.index0 }}, {{ ssid|tojson }})">Make Next</button>
                             {% endif %}
-                            <button class="btn btn-secondary" onclick="moveToReserve('{{ ssid }}')">→ Reserve</button>
-                            <button class="btn btn-delete" onclick="deleteSSID('{{ ssid }}', 'active')">Delete</button>
+                            <button class="btn btn-secondary" onclick="moveToReserve({{ ssid|tojson }})">→ Reserve</button>
+                            <button class="btn btn-delete" onclick="deleteSSID({{ ssid|tojson }}, 'active')">Delete</button>
                         </div>
                     </div>
                     {% endfor %}
@@ -605,8 +605,8 @@ HTML_TEMPLATE = '''
                             <span>{{ ssid }}</span>
                         </div>
                         <div class="button-group">
-                            <button class="btn btn-success" onclick="moveToActive('{{ ssid }}')">⚡ Activate</button>
-                            <button class="btn btn-delete" onclick="deleteSSID('{{ ssid }}', 'reserve')">Delete</button>
+                            <button class="btn btn-success" onclick="moveToActive({{ ssid|tojson }})">⚡ Activate</button>
+                            <button class="btn btn-delete" onclick="deleteSSID({{ ssid|tojson }}, 'reserve')">Delete</button>
                         </div>
                     </div>
                     {% endfor %}
@@ -643,7 +643,7 @@ HTML_TEMPLATE = '''
                             <span>{{ ssid }}</span>
                             <span class="tag protected">Protected</span>
                         </div>
-                        <button class="btn btn-delete" onclick="deleteSSID('{{ ssid }}', 'protected')">Remove</button>
+                        <button class="btn btn-delete" onclick="deleteSSID({{ ssid|tojson }}, 'protected')">Remove</button>
                     </div>
                     {% endfor %}
                 {% else %}
